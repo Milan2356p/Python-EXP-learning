@@ -27,15 +27,22 @@
     <form id="task-form" class="card">
       <input type="hidden" id="task-id">
       <input type="text" id="title" placeholder="Task name" required>
+      <select id="priority">
+        <option value="High">High</option>
+        <option value="Medium" selected>Medium</option>
+        <option value="Low">Low</option>
+      </select>
       <div class="row">
-        <select id="priority">
-          <option value="High">High</option>
-          <option value="Medium" selected>Medium</option>
-          <option value="Low">Low</option>
-        </select>
-        <input type="date" id="due-date">
+        <label class="field">Due date (empty = today)
+          <input type="date" id="due-date">
+        </label>
+        <label class="field">Task time
+          <input type="time" id="due-time">
+        </label>
       </div>
-      <input type="number" id="time-limit" min="0.1" step="any" placeholder="Time limit in minutes (optional)">
+      <label class="field">Remind me before (minutes)
+        <input type="number" id="remind-before" min="1" step="any" value="30">
+      </label>
       <div class="row">
         <button type="submit" id="submit-btn">Add Task</button>
         <button type="button" id="cancel-btn" class="secondary" hidden>Cancel</button>

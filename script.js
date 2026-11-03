@@ -1,6 +1,7 @@
 const STORAGE_KEY = "tasks";
 const TOPIC_KEY = "ntfyTopic";
 const DEFAULT_TOPIC = "todo-milan-7k3q9x"; // same as NTFY_TOPIC in the Python file
+const DEFAULT_REMIND = 30; // minutes before task time
 
 let tasks = loadTasks();
 let filter = "all";
@@ -10,7 +11,8 @@ const idInput = document.getElementById("task-id");
 const titleInput = document.getElementById("title");
 const priorityInput = document.getElementById("priority");
 const dueInput = document.getElementById("due-date");
-const limitInput = document.getElementById("time-limit");
+const timeInput = document.getElementById("due-time");
+const remindInput = document.getElementById("remind-before");
 const submitBtn = document.getElementById("submit-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 const list = document.getElementById("task-list");
@@ -45,15 +47,47 @@ function formatDate(d) {
   return `${day}-${m}-${y}`;
 }
 
+function todayStr() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/*
+  Calculates task_at and alert_at from due_date + due_time.
+  Example: task at 12:00, remind_before 30 -> alert_at = 11:30.
+  Returns false if the task time is already in the past.
+*/
+function schedule(t) {
+  if (!t.due_time) {
+    t.task_at = null;
+    t.alert_at = null;
+    return true;
+  }
+  const date = t.due_date || todayStr();
+  const at = new Date(`${date}T${t.due_time}`).getTime();
+  if (isNaN(at) || at <= Date.now()) return false;
+
+  t.due_date = date;
+  t.task_at = at;
+  t.alert_at = at - t.remind_before * 60000;
+  t.alerted = false;
+  return true;
+}
+
 function timerText(t) {
   if (t.completed) return { text: "Done", over: false };
-  if (!t.deadline) return { text: "No time limit", over: false };
-  const remaining = Math.floor((t.deadline - Date.now()) / 1000);
-  if (remaining <= 0) return { text: "TIME UP (overdue)", over: true };
+  if (!t.task_at) return { text: "No task time set", over: false };
+
+  const remaining = Math.floor((t.task_at - Date.now()) / 1000);
+  if (remaining <= 0) return { text: "TIME PASSED", over: true };
+
   const h = String(Math.floor(remaining / 3600)).padStart(2, "0");
   const m = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
   const s = String(remaining % 60).padStart(2, "0");
-  return { text: `${h}:${m}:${s} left`, over: false };
+  const rem = t.alerted ? "reminder sent" : `reminder ${t.remind_before} min before`;
+  return { text: `${h}:${m}:${s} left (${rem})`, over: false };
 }
 
 function showToast(msg) {
@@ -105,7 +139,7 @@ function beep() {
 }
 
 function startAlarm(task) {
-  alarmText.textContent = `Task: ${task.title}`;
+  alarmText.textContent = `${task.title} (due at ${task.due_time})`;
   alarmBox.hidden = false;
   if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
   clearInterval(alarmInterval);
@@ -113,7 +147,7 @@ function startAlarm(task) {
   alarmInterval = setInterval(beep, 600);
 
   if ("Notification" in window && Notification.permission === "granted") {
-    new Notification("Time is up!", { body: task.title });
+    new Notification("Task reminder", { body: `${task.title} at ${task.due_time}` });
   }
 }
 
@@ -139,13 +173,14 @@ function render() {
     title.className = "title";
     title.textContent = t.title; // textContent = safe from HTML injection
 
+    const due = formatDate(t.due_date) + (t.due_time ? " " + t.due_time : "");
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `ID: ${t.id} | Priority: ${t.priority} | Due: ${formatDate(t.due_date)} | ${t.completed ? "Completed" : "Pending"}`;
+    meta.textContent = `ID: ${t.id} | Priority: ${t.priority} | Due: ${due} | ${t.completed ? "Completed" : "Pending"}`;
 
     const timer = document.createElement("div");
     timer.className = "meta";
-    timer.append("⏳ Timer: ");
+    timer.append("⏳ Time left: ");
     const span = document.createElement("span");
     span.className = "timer";
     span.id = "timer-" + t.id;
@@ -188,21 +223,25 @@ function updateTimers() {
   });
 }
 
-function checkDeadlines() {
+function checkReminders() {
   let changed = false;
   tasks.forEach(t => {
-    if (t.deadline && !t.completed && !t.alerted && Date.now() >= t.deadline) {
+    if (t.alert_at && !t.completed && !t.alerted && Date.now() >= t.alert_at) {
       t.alerted = true;
       changed = true;
+      const mins = Math.max(0, Math.round((t.task_at - Date.now()) / 60000));
       startAlarm(t);
-      sendAlert("Time is up!", `Task: ${t.title} (Priority: ${t.priority}). Do it now!`);
+      sendAlert(
+        "Task Reminder",
+        `${t.title} is due at ${t.due_time} (in about ${mins} min). Priority: ${t.priority}. Do it now!`
+      );
     }
   });
   if (changed) saveTasks();
 }
 
 setInterval(() => {
-  checkDeadlines();
+  checkReminders();
   updateTimers();
 }, 1000);
 
@@ -216,40 +255,57 @@ form.addEventListener("submit", e => {
   const title = titleInput.value.trim();
   if (!title) return;
 
-  const minutes = parseFloat(limitInput.value);
-  const hasLimit = !isNaN(minutes) && minutes > 0;
+  let remind = parseFloat(remindInput.value);
+  if (isNaN(remind) || remind <= 0) remind = DEFAULT_REMIND;
 
-  if (hasLimit && "Notification" in window && Notification.permission === "default") {
+  const values = {
+    title,
+    priority: priorityInput.value,
+    due_date: dueInput.value,
+    due_time: timeInput.value,
+    remind_before: remind
+  };
+
+  if (values.due_time && "Notification" in window && Notification.permission === "default") {
     Notification.requestPermission();
   }
 
   if (idInput.value) {
     const t = tasks.find(x => x.id === Number(idInput.value));
     if (t) {
-      t.title = title;
-      t.priority = priorityInput.value;
-      t.due_date = dueInput.value;
-      if (hasLimit && minutes !== t.time_limit) {
-        t.time_limit = minutes;
-        t.deadline = Date.now() + minutes * 60000; // restart timer
-        t.alerted = false;
-      } else if (!hasLimit) {
-        t.time_limit = null;
-        t.deadline = null;
+      const sameSchedule =
+        t.due_date === values.due_date &&
+        (t.due_time || "") === values.due_time &&
+        t.remind_before === values.remind_before;
+
+      if (sameSchedule) {
+        t.title = values.title;
+        t.priority = values.priority;
+      } else {
+        const tmp = { ...t, ...values };
+        if (!schedule(tmp)) {
+          showToast("Task time has already passed ❌");
+          return;
+        }
+        if (tmp.alert_at === t.alert_at) tmp.alerted = t.alerted;
+        Object.assign(t, tmp);
       }
     }
   } else {
     const newId = tasks.reduce((max, t) => Math.max(max, t.id), 0) + 1;
-    tasks.push({
+    const t = {
       id: newId,
-      title,
-      priority: priorityInput.value,
-      due_date: dueInput.value,
-      completed: false,
-      time_limit: hasLimit ? minutes : null,
-      deadline: hasLimit ? Date.now() + minutes * 60000 : null,
-      alerted: false
-    });
+      ...values,
+      task_at: null,
+      alert_at: null,
+      alerted: false,
+      completed: false
+    };
+    if (!schedule(t)) {
+      showToast("Task time has already passed ❌");
+      return;
+    }
+    tasks.push(t);
   }
   saveTasks();
   resetForm();
@@ -261,6 +317,7 @@ cancelBtn.addEventListener("click", resetForm);
 function resetForm() {
   form.reset();
   idInput.value = "";
+  remindInput.value = DEFAULT_REMIND;
   submitBtn.textContent = "Add Task";
   cancelBtn.hidden = true;
 }
@@ -271,8 +328,9 @@ function startEdit(id) {
   idInput.value = t.id;
   titleInput.value = t.title;
   priorityInput.value = t.priority;
-  dueInput.value = t.due_date;
-  limitInput.value = t.time_limit || "";
+  dueInput.value = t.due_date || "";
+  timeInput.value = t.due_time || "";
+  remindInput.value = t.remind_before || DEFAULT_REMIND;
   submitBtn.textContent = "Update Task";
   cancelBtn.hidden = false;
   titleInput.focus();

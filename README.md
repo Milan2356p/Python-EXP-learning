@@ -8,13 +8,14 @@ This project has two versions of the same To-Do List:
 | Website | `index.html`, `style.css`, `script.js` | Open `index.html` in a browser |
 
 ## Features (both versions)
-- Add task (name, priority High/Medium/Low, due date, time limit in minutes)
+- Add task (name, priority High/Medium/Low, due date, task time, remind-before minutes)
 - View tasks (with live countdown timer)
 - Update task
 - Mark task as completed
 - Delete task
-- Alert: when the timer ends, an alarm plays on the laptop AND a push alert
-  (with sound) is sent to the phone
+- Reminder: if a task is at 12:00 and remind-before is 30, the alert comes at 11:30
+  (default 30 min, can be changed per task). An alarm plays on the laptop AND a push
+  alert (with sound) is sent to the phone
 - Manual "Alert phone" button to send a task reminder to the phone instantly
 
 ## Phone alert setup (free, no signup)
