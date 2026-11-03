@@ -10,6 +10,20 @@
   <main class="container">
     <h1>📝 Simple To-Do List</h1>
 
+    <details class="card settings">
+      <summary>📱 Phone alert settings</summary>
+      <p class="hint">
+        1) Install the free <b>ntfy</b> app on your phone.<br>
+        2) Subscribe to the same topic name written below.<br>
+        3) Press "Send test alert".
+      </p>
+      <div class="row">
+        <input type="text" id="topic" placeholder="ntfy topic name">
+        <button type="button" id="save-topic">Save</button>
+      </div>
+      <button type="button" id="test-alert" class="secondary">Send test alert to phone</button>
+    </details>
+
     <form id="task-form" class="card">
       <input type="hidden" id="task-id">
       <input type="text" id="title" placeholder="Task name" required>
@@ -21,6 +35,7 @@
         </select>
         <input type="date" id="due-date">
       </div>
+      <input type="number" id="time-limit" min="0.1" step="any" placeholder="Time limit in minutes (optional)">
       <div class="row">
         <button type="submit" id="submit-btn">Add Task</button>
         <button type="button" id="cancel-btn" class="secondary" hidden>Cancel</button>
@@ -36,6 +51,17 @@
     <ul id="task-list"></ul>
     <p id="empty" class="empty" hidden>No tasks found.</p>
   </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <div id="alarm" class="alarm" hidden>
+    <div class="alarm-box">
+      <h2>⏰ Time is up!</h2>
+      <p id="alarm-text"></p>
+      <button id="stop-alarm" type="button">Stop alarm</button>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

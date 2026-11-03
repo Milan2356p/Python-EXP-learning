@@ -26,3 +26,16 @@ li.done .title { text-decoration: line-through; color: #888; }
 .actions .edit-btn { background: #f59e0b; }
 .actions .del-btn { background: #dc2626; }
 .empty { text-align: center; color: #777; }
+
+/* ---- Timer + alert additions ---- */
+.settings summary { cursor: pointer; font-weight: bold; }
+.hint { font-size: 13px; color: #555; line-height: 1.5; }
+.timer { font-weight: bold; color: #2563eb; }
+.timer.over { color: #dc2626; }
+.actions .alert-btn { background: #7c3aed; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; max-width: 90%; }
+.alarm { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 20px; }
+.alarm[hidden], .toast[hidden] { display: none; }
+.alarm-box { background: #fff; padding: 24px; border-radius: 12px; text-align: center; max-width: 360px; width: 100%; animation: pulse 1s infinite; }
+.alarm-box button { background: #dc2626; width: 100%; margin-top: 10px; }
+@keyframes pulse { 50% { transform: scale(1.04); } }
